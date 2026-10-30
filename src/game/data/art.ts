@@ -15,6 +15,8 @@ export const MONSTER_ART: string[] = [
   'oden_bros',
   'sharizeki',
   'yokozuna_ohitsu',
+  'mummy_baron',
+  'admiral_duck',
 ];
 
 /** 絵が左を向いている種族（右向きで描かれたものはここに入れない） */
