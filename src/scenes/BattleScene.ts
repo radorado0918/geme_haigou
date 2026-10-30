@@ -66,7 +66,7 @@ export class BattleScene extends Phaser.Scene {
 
     this.drawArena();
 
-    this.keys = this.input.keyboard!.addKeys('W,A,S,D,J,K,U,I,O,Q,E,R,T,SPACE') as Record<string, Phaser.Input.Keyboard.Key>;
+    this.keys = this.input.keyboard!.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT,J,K,U,I,O,Q,E,R,T,SPACE') as Record<string, Phaser.Input.Keyboard.Key>;
 
     demoParty().forEach((m, i) => {
       this.allies.push(new Unit(this, m, 'ally', 220 - (i % 2) * 60, 260 + i * 120));
@@ -84,7 +84,7 @@ export class BattleScene extends Phaser.Scene {
       .text(
         1260,
         14,
-        'WASD 移動 / J 攻撃 / K・Space 回避 / U I O 技 / Q E 交代',
+        'WASD・矢印キー 移動 / J 攻撃 / K・Space 回避 / U I O 技 / Q E 交代',
         { fontSize: '16px', color: '#ccd', stroke: '#000', strokeThickness: 3 },
       )
       .setOrigin(1, 0)
@@ -158,8 +158,8 @@ export class BattleScene extends Phaser.Scene {
     if (Phaser.Input.Keyboard.JustDown(k.E)) return this.switchRelative(1);
     if (u.stun > 0 || u.dodging > 0) return;
 
-    let mx = (k.D.isDown ? 1 : 0) - (k.A.isDown ? 1 : 0);
-    let my = (k.S.isDown ? 1 : 0) - (k.W.isDown ? 1 : 0);
+    let mx = (k.D.isDown || k.RIGHT.isDown ? 1 : 0) - (k.A.isDown || k.LEFT.isDown ? 1 : 0);
+    let my = (k.S.isDown || k.DOWN.isDown ? 1 : 0) - (k.W.isDown || k.UP.isDown ? 1 : 0);
     if (u.confused > 0) {
       mx = -mx;
       my = -my;
