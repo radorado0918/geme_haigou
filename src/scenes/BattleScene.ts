@@ -168,7 +168,7 @@ export class BattleScene extends Phaser.Scene {
     const len = Math.hypot(mx, my) || 1;
     const sp = u.speed * (u.slow > 0 ? 0.5 : 1);
     u.x += (mx / len) * sp * dt;
-    u.y += (my / len) * sp * dt * 0.75;
+    u.y += (my / len) * sp * dt * 0.85;
 
     if ((Phaser.Input.Keyboard.JustDown(k.K) || Phaser.Input.Keyboard.JustDown(k.SPACE)) && u.dodgeCd <= 0) {
       const dx = mx === 0 && my === 0 ? u.facing : mx / len;
