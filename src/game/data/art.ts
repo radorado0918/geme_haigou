@@ -18,6 +18,6 @@ export const MONSTER_ART: string[] = [
 ];
 
 /** 絵が左を向いている種族（右向きで描かれたものはここに入れない） */
-export const ART_FACES_LEFT: string[] = ['toaster_ninja', 'iron_banchou', 'mask_garuda', 'snorke', 'sharizeki'];
+export const ART_FACES_LEFT: string[] = ['toaster_ninja', 'iron_banchou', 'mask_garuda', 'snorke', 'sharizeki', 'mummy_baron', 'admiral_duck'];
 
 export const artKey = (speciesId: string) => `mon_${speciesId}`;
