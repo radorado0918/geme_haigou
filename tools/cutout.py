@@ -16,6 +16,8 @@ WHITE_THRESHOLD = 235  # これより明るい画素を背景候補にする
 
 def cutout(src: str, dst: str, holes: bool = False) -> None:
     img = Image.open(src).convert('RGBA')
+    # 大きな画像は先に縮めて処理を速くする
+    img.thumbnail((1024, 1024), Image.LANCZOS)
     a = np.array(img)
     h, w = a.shape[:2]
     light = (a[:, :, :3].min(axis=2) >= WHITE_THRESHOLD)
