@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { FAMILY_COLORS } from '../battle/Unit';
+import { artKey } from '../game/data/art';
 import { getSpecies } from '../game/monster';
 import type { Family, Monster } from '../game/types';
 
@@ -58,7 +59,7 @@ export function monsterCard(
     .setOrigin(0)
     .setStrokeStyle(2, opts.selected ? 0xffe066 : 0x445066);
   const r = s.size === 'L' ? 22 : s.size === 'M' ? 18 : 14;
-  const icon = scene.add.circle(32, h / 2, r, FAMILY_COLORS[s.family]).setStrokeStyle(2, 0xffffff);
+  const icon = monsterIcon(scene, 32, h / 2, s.id, r);
   const name = scene.add.text(62, 8, s.name, { ...TEXT, fontSize: '15px' });
   const info = scene.add.text(62, 32, `${RANK_LABEL[s.rank]}  Lv${m.level}${m.plus ? `  +${m.plus}` : ''}`, {
     ...TEXT,
@@ -79,4 +80,26 @@ export function monsterCard(
 
 export function panel(scene: Phaser.Scene, x: number, y: number, w: number, h: number) {
   return scene.add.rectangle(x, y, w, h, 0x1a2029).setOrigin(0).setStrokeStyle(2, 0x334055);
+}
+
+/** モンスターの絵（なければ系統の色の丸）。size はおおよその半径 */
+export function monsterIcon(
+  scene: Phaser.Scene,
+  x: number,
+  y: number,
+  speciesId: string,
+  size: number,
+  opts: { silhouette?: boolean } = {},
+): Phaser.GameObjects.GameObject & Phaser.GameObjects.Components.Transform {
+  const key = artKey(speciesId);
+  if (scene.textures.exists(key)) {
+    const img = scene.add.image(x, y, key);
+    img.setScale((size * 2.6) / Math.max(img.width, img.height));
+    if (opts.silhouette) img.setTintFill(0x000000);
+    return img;
+  }
+  const s = getSpecies(speciesId);
+  return scene.add
+    .circle(x, y, size, opts.silhouette ? 0x000000 : FAMILY_COLORS[s.family])
+    .setStrokeStyle(2, opts.silhouette ? 0x8a6fb0 : 0xffffff);
 }

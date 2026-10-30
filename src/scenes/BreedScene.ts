@@ -7,7 +7,7 @@ import { getSpecies, levelCap } from '../game/monster';
 import { breedInState } from '../game/progress';
 import { persist, state } from '../game/store';
 import type { Monster } from '../game/types';
-import { button, FAMILY_LABEL, monsterCard, panel, RANK_LABEL, TEXT } from '../ui/ui';
+import { button, FAMILY_LABEL, monsterCard, monsterIcon, panel, RANK_LABEL, TEXT } from '../ui/ui';
 
 const PER_PAGE = 12;
 
@@ -107,11 +107,7 @@ export class BreedScene extends Phaser.Scene {
     const { species, byRecipe } = previewChild(a, b);
     const known = s.dex.includes(species.id);
     const r = species.size === 'L' ? 54 : species.size === 'M' ? 44 : 34;
-    L.add(
-      this.add
-        .circle(800, 160, r, known ? FAMILY_COLORS[species.family] : 0x000000)
-        .setStrokeStyle(3, known ? 0xffffff : 0x8a6fb0),
-    );
+    L.add(monsterIcon(this, 800, 160, species.id, r, { silhouette: !known }));
     if (!known) L.add(this.add.text(800, 160, '？', { ...TEXT, fontSize: '40px' }).setOrigin(0.5));
     const plus = Math.floor((a.plus + b.plus) / 2) + 1;
     const level = Math.max(1, Math.floor((a.level + b.level) / 4));
@@ -221,9 +217,11 @@ export class BreedScene extends Phaser.Scene {
     const overlay = this.add.container(0, 0).setDepth(1000);
     overlay.add(this.add.rectangle(0, 0, 1280, 720, 0x000000, 0.75).setOrigin(0).setInteractive());
     const r = sp.size === 'L' ? 90 : sp.size === 'M' ? 72 : 56;
-    const body = this.add.circle(640, 300, r, FAMILY_COLORS[sp.family]).setStrokeStyle(4, 0xffffff).setScale(0);
+    const body = monsterIcon(this, 640, 280, sp.id, r);
+    const full = body.scaleX;
+    body.setScale(0);
     overlay.add(body);
-    this.tweens.add({ targets: body, scale: 1, duration: 600, ease: 'Back.Out' });
+    this.tweens.add({ targets: body, scale: full, duration: 600, ease: 'Back.Out' });
     overlay.add(
       this.add
         .text(640, 430, `${sp.name} が生まれた！`, { ...TEXT, fontSize: '40px', color: '#ffe066' })

@@ -1,10 +1,15 @@
 import Phaser from 'phaser';
+import { artKey, MONSTER_ART } from '../game/data/art';
 import { continueGame, hasSave, startNew } from '../game/store';
 import { button, TEXT } from '../ui/ui';
 
 export class TitleScene extends Phaser.Scene {
   constructor() {
     super('Title');
+  }
+
+  preload() {
+    for (const id of MONSTER_ART) this.load.image(artKey(id), `monsters/${id}.png`);
   }
 
   create() {
