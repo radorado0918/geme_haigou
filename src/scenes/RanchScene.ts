@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { SKILL_MAP } from '../game/data/skills';
+import { SKILL_KIND_INFO, SKILL_MAP } from '../game/data/skills';
 import { STAGES } from '../game/data/stages';
 import { TRAIT_MAP } from '../game/data/traits';
 import { getSpecies, levelCap, statsOf } from '../game/monster';
@@ -81,12 +81,14 @@ export class RanchScene extends Phaser.Scene {
         `Lv${sel.level}/${levelCap(sel)}　＋${sel.plus}　経験値 ${nextExp}`,
         `HP ${st.hp}　ちから ${st.atk}　まもり ${st.def}　すばやさ ${st.spd}　わざ ${st.tec}`,
         '',
-        `技：${sel.skills.map((id) => SKILL_MAP[id].name).join(' / ')}`,
-        `登場技：${sp.entrySkill.name}`,
+        ...sel.skills.map((id, i) => {
+          const sk = SKILL_MAP[id];
+          return `${'UIO'[i]} ${sk.name}［${SKILL_KIND_INFO[sk.kind].label}］ ${sk.description}`;
+        }),
+        `登場技：${sp.entrySkill.name}［${SKILL_KIND_INFO[sp.entrySkill.kind].label}］`,
         `特性：${TRAIT_MAP[sel.trait.id].name}${sel.trait.level === 2 ? '（強化）' : ''} … ${
           sel.trait.level === 2 ? TRAIT_MAP[sel.trait.id].upgradedDescription : TRAIT_MAP[sel.trait.id].description
         }`,
-        '',
         sp.look,
       ];
       L.add(this.add.text(32, 418, lines.join('\n'), { ...TEXT, fontSize: '17px', lineSpacing: 6, wordWrap: { width: 600 } }));

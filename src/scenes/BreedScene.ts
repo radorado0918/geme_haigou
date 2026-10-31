@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { FAMILY_COLORS } from '../battle/Unit';
-import { inheritableSkills, inheritableTraits, MAX_INHERITED_SKILLS, previewChild } from '../game/breeding';
-import { SKILL_MAP } from '../game/data/skills';
+import { availableRecipes, inheritableSkills, inheritableTraits, MAX_INHERITED_SKILLS, previewChild } from '../game/breeding';
+import { SKILL_KIND_INFO, SKILL_MAP } from '../game/data/skills';
 import { TRAIT_MAP } from '../game/data/traits';
 import { getSpecies, levelCap } from '../game/monster';
 import { breedInState } from '../game/progress';
@@ -50,6 +50,26 @@ export class BreedScene extends Phaser.Scene {
     else this.parentB = uid;
     this.resetChoices();
     this.render();
+  }
+
+  /** 手持ちでできる特殊配合を並べ、押すと親2体をまとめて選ぶ */
+  private renderRecipeShortcuts(L: Phaser.GameObjects.Container) {
+    const s = state();
+    const recipes = availableRecipes(s.monsters);
+    if (recipes.length === 0) return;
+    L.add(this.add.text(712, 180, '★ 今できる特殊配合（押すと親を自動で選びます）', { ...TEXT, fontSize: '17px', color: '#ffe066' }));
+    recipes.forEach((r, i) => {
+      const child = s.dex.includes(r.child) ? getSpecies(r.child).name : '？？？';
+      const label = `${getSpecies(r.parentA.speciesId).name} × ${getSpecies(r.parentB.speciesId).name} → ${child}`;
+      L.add(
+        button(this, 978, 230 + i * 52, 532, 44, label, () => {
+          this.parentA = r.parentA.uid;
+          this.parentB = r.parentB.uid;
+          this.resetChoices();
+          this.render();
+        }, { fontSize: 17, color: 0x6b5a1e }),
+      );
+    });
   }
 
   private render() {
@@ -101,6 +121,7 @@ export class BreedScene extends Phaser.Scene {
           lineSpacing: 8,
         }),
       );
+      this.renderRecipeShortcuts(L);
       return;
     }
 
@@ -144,7 +165,7 @@ export class BreedScene extends Phaser.Scene {
           290 + Math.floor(i / 2) * 50,
           256,
           40,
-          `${on ? '✔ ' : ''}${sk.name}`,
+          `${on ? '✔ ' : ''}${sk.name}（${SKILL_KIND_INFO[sk.kind].label}）`,
           () => {
             this.pickedSkills = on ? this.pickedSkills.filter((x) => x !== id) : [...this.pickedSkills, id];
             this.render();

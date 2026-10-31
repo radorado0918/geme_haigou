@@ -40,6 +40,27 @@ export function previewChild(parentA: Monster, parentB: Monster): BreedPreview {
   return { species: (fresh[0] ?? top[0]), byRecipe: false };
 }
 
+export interface AvailableRecipe {
+  child: string;
+  parentA: Monster;
+  parentB: Monster;
+}
+
+/** 手持ちでできる特殊配合。親はそれぞれの種族でレベルが一番高い個体を選ぶ */
+export function availableRecipes(monsters: Monster[]): AvailableRecipe[] {
+  const best = (speciesId: string, exclude?: Monster) =>
+    monsters
+      .filter((m) => m.speciesId === speciesId && m !== exclude)
+      .sort((x, y) => y.level - x.level || y.plus - x.plus)[0];
+  const result: AvailableRecipe[] = [];
+  for (const r of RECIPES) {
+    const a = best(r.parents[0]);
+    const b = a && best(r.parents[1], a);
+    if (a && b) result.push({ child: r.child, parentA: a, parentB: b });
+  }
+  return result;
+}
+
 /** 子に継承させられる技の候補（子の固有技は除く） */
 export function inheritableSkills(parentA: Monster, parentB: Monster): string[] {
   const child = previewChild(parentA, parentB).species;
