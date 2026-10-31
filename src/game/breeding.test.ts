@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { breed, inheritableSkills, inheritableTraits, previewChild } from './breeding';
+import { availableRecipes, breed, inheritableSkills, inheritableTraits, previewChild } from './breeding';
 import { RECIPES } from './data/recipes';
 import { SPECIES } from './data/species';
 import { createWild, levelCap, statsOf } from './monster';
@@ -118,5 +118,21 @@ describe('レベルと＋値', () => {
     const base = { speciesId: 'mukimeshi', level: 20 };
     expect(levelCap({ ...base, plus: 2 })).toBeGreaterThan(levelCap({ ...base, plus: 0 }));
     expect(statsOf({ ...base, plus: 2 }).atk).toBeGreaterThan(statsOf({ ...base, plus: 0 }).atk);
+  });
+});
+
+describe('手持ちでできる特殊配合', () => {
+  it('両方の親がそろっているレシピだけを、レベルの高い個体で返す', () => {
+    const low = createWild('sharizeki', 3);
+    const high = createWild('sharizeki', 8);
+    const meshi = createWild('mukimeshi', 5);
+    const snorke = createWild('snorke', 5);
+    const found = availableRecipes([low, meshi, high, snorke]);
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({ child: 'yokozuna_ohitsu', parentA: high, parentB: meshi });
+  });
+
+  it('1体を両方の親に使わない', () => {
+    expect(availableRecipes([createWild('sharizeki')])).toEqual([]);
   });
 });
