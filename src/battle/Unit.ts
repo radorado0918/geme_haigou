@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { BATTLE_HP_MUL, SIZE_PARAMS, SKILL_PARAMS, moveSpeed } from '../game/combat';
+import { ART_FACES_LEFT, artKey } from '../game/data/art';
 import { SKILL_MAP } from '../game/data/skills';
 import { getSpecies, statsOf } from '../game/monster';
 import type { Family, Monster, SkillKind, Species, Stats } from '../game/types';
@@ -57,6 +58,10 @@ export class Unit {
   private readonly ring: Phaser.GameObjects.Ellipse;
   private readonly hpBar: Phaser.GameObjects.Graphics;
   private readonly baseColor: number;
+  /** AI生成の絵（あれば図形の代わりに使う） */
+  private readonly sprite?: Phaser.GameObjects.Image;
+  private readonly spriteScale: number = 1;
+  private readonly topY: number;
 
   constructor(
     readonly scene: Phaser.Scene,
@@ -95,7 +100,21 @@ export class Unit {
       })
       .setOrigin(0.5);
     this.hpBar = scene.add.graphics();
-    this.container = scene.add.container(x, y, [shadow, this.ring, this.bodyShape, this.eye, label, this.hpBar]);
+    const parts: Phaser.GameObjects.GameObject[] = [shadow, this.ring, this.bodyShape, this.eye];
+    const key = artKey(this.species.id);
+    if (scene.textures.exists(key)) {
+      // 絵の高さは体格の半径の約3.6倍。足元を原点にする
+      const sprite = scene.add.image(0, 0, key).setOrigin(0.5, 1);
+      this.spriteScale = (r * 3.6) / sprite.height;
+      sprite.setScale(this.spriteScale);
+      this.sprite = sprite;
+      this.bodyShape.setVisible(false);
+      this.eye.setVisible(false);
+      parts.push(sprite);
+      label.setY(-r * 3.6 - 22);
+    }
+    this.topY = this.sprite ? -r * 3.6 - 10 : -r * 2.4 - 6;
+    this.container = scene.add.container(x, y, [...parts, label, this.hpBar]);
   }
 
   get alive() {
@@ -149,11 +168,21 @@ export class Unit {
     else if (this.countering > 0) color = 0x66ccff;
     else if (this.stun > 0) color = 0x777777;
     this.bodyShape.setFillStyle(color);
+    if (this.sprite) {
+      this.sprite.setFlipX((this.facing < 0) !== ART_FACES_LEFT.includes(this.species.id));
+      if (this.windup) this.sprite.setTintFill(0xffffff);
+      else if (this.countering > 0) this.sprite.setTint(0x66ccff);
+      else if (this.stun > 0) this.sprite.setTint(0x888888);
+      else this.sprite.clearTint();
+      // 待機中の呼吸
+      const breath = 1 + Math.sin(this.scene.time.now / 260 + this.x) * 0.025;
+      this.sprite.setScale(this.spriteScale, this.spriteScale * breath);
+    }
     this.container.setAlpha(this.dead ? 0 : this.invuln > 0 || this.dodging > 0 ? 0.55 : 1);
 
     this.hpBar.clear();
     const w = r * 2;
-    const yy = -r * 2.4 - 6;
+    const yy = this.topY;
     this.hpBar.fillStyle(0x000000, 0.7).fillRect(-w / 2 - 1, yy - 1, w + 2, 7);
     const ratio = Math.max(0, this.hp / this.maxHp);
     this.hpBar.fillStyle(this.side === 'ally' ? 0x5be37a : 0xe35b5b).fillRect(-w / 2, yy, w * ratio, 5);

@@ -1,5 +1,7 @@
 import Phaser from 'phaser';
 import { BattleScene } from './scenes/BattleScene';
+import { BreedScene } from './scenes/BreedScene';
+import { RanchScene } from './scenes/RanchScene';
 import { TitleScene } from './scenes/TitleScene';
 
 new Phaser.Game({
@@ -8,5 +10,5 @@ new Phaser.Game({
   height: 720,
   backgroundColor: '#1d2330',
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-  scene: [TitleScene, BattleScene],
+  scene: [TitleScene, RanchScene, BreedScene, BattleScene],
 });

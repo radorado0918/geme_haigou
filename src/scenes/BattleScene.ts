@@ -1,7 +1,11 @@
 import Phaser from 'phaser';
 import { ATTACK_PARAMS, SIZE_PARAMS, SKILL_PARAMS, damage, switchCooldown } from '../game/combat';
 import type { SkillKind } from '../game/types';
-import { demoParty, demoWaves, type WaveEnemy } from '../battle/setup';
+import { stageWaves, type WaveEnemy } from '../battle/setup';
+import { STAGE_MAP, type StageEnemy } from '../game/data/stages';
+import { getSpecies } from '../game/monster';
+import { battleExp, gainExp, markCleared, partyMonsters, recruit, recruitCandidate } from '../game/progress';
+import { persist, state } from '../game/store';
 import { Unit } from '../battle/Unit';
 
 const ARENA = { left: 40, right: 1240, top: 170, bottom: 580 };
@@ -47,12 +51,25 @@ export class BattleScene extends Phaser.Scene {
   private hud!: Phaser.GameObjects.Graphics;
   private hudTexts: Phaser.GameObjects.Text[] = [];
   private topText!: Phaser.GameObjects.Text;
+  private stageId = 'meadow';
+  private enemySource = new Map<Unit, StageEnemy>();
+  private defeated: StageEnemy[] = [];
+  private recruitOffer?: StageEnemy;
+  private resultText?: Phaser.GameObjects.Text;
 
   constructor() {
     super('Battle');
   }
 
+  init(data: { stageId?: string }) {
+    if (data?.stageId && STAGE_MAP[data.stageId]) this.stageId = data.stageId;
+  }
+
   create() {
+    this.enemySource = new Map();
+    this.defeated = [];
+    this.recruitOffer = undefined;
+    this.resultText = undefined;
     this.allies = [];
     this.enemies = [];
     this.projectiles = [];
@@ -66,14 +83,14 @@ export class BattleScene extends Phaser.Scene {
 
     this.drawArena();
 
-    this.keys = this.input.keyboard!.addKeys('W,A,S,D,J,K,U,I,O,Q,E,R,T,SPACE') as Record<string, Phaser.Input.Keyboard.Key>;
+    this.keys = this.input.keyboard!.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT,J,K,U,I,O,Q,E,R,T,Y,N,SPACE,ENTER') as Record<string, Phaser.Input.Keyboard.Key>;
 
-    demoParty().forEach((m, i) => {
+    partyMonsters(state()).forEach((m, i) => {
       this.allies.push(new Unit(this, m, 'ally', 220 - (i % 2) * 60, 260 + i * 120));
     });
     this.allies[0].setControlled(true);
 
-    this.waves = demoWaves();
+    this.waves = stageWaves(this.stageId);
     this.spawnWave();
 
     this.hud = this.add.graphics().setDepth(10000);
@@ -84,7 +101,7 @@ export class BattleScene extends Phaser.Scene {
       .text(
         1260,
         14,
-        'WASD 移動 / J 攻撃 / K・Space 回避 / U I O 技 / Q E 交代',
+        'WASD・矢印キー 移動 / J 攻撃 / K・Space 回避 / U I O 技 / Q E 交代',
         { fontSize: '16px', color: '#ccd', stroke: '#000', strokeThickness: 3 },
       )
       .setOrigin(1, 0)
@@ -112,10 +129,12 @@ export class BattleScene extends Phaser.Scene {
     const wave = this.waves[this.waveIdx];
     wave.forEach((e, i) => {
       const y = wave.length === 1 ? 380 : 220 + i * (330 / Math.max(1, wave.length - 1));
-      this.enemies.push(new Unit(this, e.monster, 'enemy', 1000 + (i % 2) * 120, y, e.hpMul ?? 1));
+      const u = new Unit(this, e.monster, 'enemy', 1000 + (i % 2) * 120, y, e.hpMul ?? 1);
+      this.enemySource.set(u, e.source);
+      this.enemies.push(u);
     });
     const boss = wave.some((e) => e.boss);
-    this.banner(boss ? 'ボス出現！' : `WAVE ${this.waveIdx + 1}`);
+    this.banner(boss ? 'ボス出現！' : this.waveIdx === 0 ? STAGE_MAP[this.stageId].name : `WAVE ${this.waveIdx + 1}`);
   }
 
   // ---------------------------------------------------------------- update
@@ -140,10 +159,7 @@ export class BattleScene extends Phaser.Scene {
     this.checkEnd(dt);
     this.drawHud();
 
-    if (this.ended) {
-      if (Phaser.Input.Keyboard.JustDown(this.keys.R)) this.scene.restart();
-      if (Phaser.Input.Keyboard.JustDown(this.keys.T)) this.scene.start('Title');
-    }
+    if (this.ended) this.handleResultInput();
   }
 
   private get player(): Unit {
@@ -158,8 +174,8 @@ export class BattleScene extends Phaser.Scene {
     if (Phaser.Input.Keyboard.JustDown(k.E)) return this.switchRelative(1);
     if (u.stun > 0 || u.dodging > 0) return;
 
-    let mx = (k.D.isDown ? 1 : 0) - (k.A.isDown ? 1 : 0);
-    let my = (k.S.isDown ? 1 : 0) - (k.W.isDown ? 1 : 0);
+    let mx = (k.D.isDown || k.RIGHT.isDown ? 1 : 0) - (k.A.isDown || k.LEFT.isDown ? 1 : 0);
+    let my = (k.S.isDown || k.DOWN.isDown ? 1 : 0) - (k.W.isDown || k.UP.isDown ? 1 : 0);
     if (u.confused > 0) {
       mx = -mx;
       my = -my;
@@ -168,7 +184,7 @@ export class BattleScene extends Phaser.Scene {
     const len = Math.hypot(mx, my) || 1;
     const sp = u.speed * (u.slow > 0 ? 0.5 : 1);
     u.x += (mx / len) * sp * dt;
-    u.y += (my / len) * sp * dt * 0.75;
+    u.y += (my / len) * sp * dt * 0.85;
 
     if ((Phaser.Input.Keyboard.JustDown(k.K) || Phaser.Input.Keyboard.JustDown(k.SPACE)) && u.dodgeCd <= 0) {
       const dx = mx === 0 && my === 0 ? u.facing : mx / len;
@@ -446,6 +462,8 @@ export class BattleScene extends Phaser.Scene {
     t.hp = 0;
     t.dead = true;
     t.windup = undefined;
+    const src = this.enemySource.get(t);
+    if (src) this.defeated.push(src);
     this.popup(t.x, t.y - t.radius * 2, 'たおれた', '#aaaaaa', 16);
     if (t.controlled) {
       const next = this.allies.findIndex((a) => a.alive);
@@ -546,17 +564,68 @@ export class BattleScene extends Phaser.Scene {
 
   private finish(result: 'win' | 'lose') {
     this.ended = result;
-    const msg = result === 'win' ? '勝利！' : '全滅…';
-    const t = this.formatTime(this.elapsed);
-    this.add.rectangle(640, 330, 1280, 220, 0x000000, 0.6).setDepth(20000);
+    const st = state();
+    const won = result === 'win';
+    const exp = battleExp(this.defeated, won);
+    const ups = gainExp(st, [...st.party], exp);
+    if (won) {
+      markCleared(st, this.stageId);
+      this.recruitOffer = recruitCandidate(this.defeated);
+    }
+    persist();
+
+    const lines = [`タイム ${this.formatTime(this.elapsed)}　　経験値 +${exp}`];
+    for (const u of ups) {
+      const m = st.monsters.find((x) => x.uid === u.uid);
+      if (m) lines.push(`${getSpecies(m.speciesId).name} は Lv${u.to} に上がった！`);
+    }
+    this.add.rectangle(640, 330, 1280, 360, 0x000000, 0.7).setDepth(20000);
     this.add
-      .text(640, 300, msg, { fontSize: '64px', color: result === 'win' ? '#ffe066' : '#ff8080', stroke: '#000', strokeThickness: 6 })
+      .text(640, 200, won ? '勝利！' : '全滅…', {
+        fontSize: '64px',
+        color: won ? '#ffe066' : '#ff8080',
+        stroke: '#000',
+        strokeThickness: 6,
+      })
       .setOrigin(0.5)
       .setDepth(20001);
     this.add
-      .text(640, 380, `タイム ${t}    R: もう一回  T: タイトルへ`, { fontSize: '24px', color: '#fff' })
+      .text(640, 300, lines.join('\n'), { fontSize: '22px', color: '#fff', align: 'center', lineSpacing: 6 })
+      .setOrigin(0.5, 0.5)
+      .setDepth(20001);
+    this.resultText = this.add
+      .text(640, 450, '', { fontSize: '22px', color: '#ffe066', align: 'center', lineSpacing: 8 })
       .setOrigin(0.5)
       .setDepth(20001);
+    this.refreshResultPrompt();
+  }
+
+  private refreshResultPrompt() {
+    if (!this.resultText) return;
+    if (this.recruitOffer) {
+      const name = getSpecies(this.recruitOffer.speciesId).name;
+      this.resultText.setText(`${name} が仲間になりたそうにこちらを見ている！\nY: 仲間にする　　N: 見送る`);
+    } else {
+      this.resultText.setText('Enter: 牧場へ　　R: もう一回');
+    }
+  }
+
+  private handleResultInput() {
+    if (this.recruitOffer) {
+      if (Phaser.Input.Keyboard.JustDown(this.keys.Y)) {
+        const m = recruit(state(), this.recruitOffer);
+        persist();
+        this.recruitOffer = undefined;
+        this.refreshResultPrompt();
+        this.resultText?.setText(`${getSpecies(m.speciesId).name} が仲間になった！\n` + this.resultText.text);
+      } else if (Phaser.Input.Keyboard.JustDown(this.keys.N)) {
+        this.recruitOffer = undefined;
+        this.refreshResultPrompt();
+      }
+      return;
+    }
+    if (Phaser.Input.Keyboard.JustDown(this.keys.R)) this.scene.restart({ stageId: this.stageId });
+    else if (Phaser.Input.Keyboard.JustDown(this.keys.ENTER)) this.scene.start('Ranch');
   }
 
   // ---------------------------------------------------------------- HUD・演出
@@ -580,7 +649,7 @@ export class BattleScene extends Phaser.Scene {
       g.lineStyle(2, u.controlled ? 0xffe066 : 0x445066).strokeRoundedRect(x, y, 395, 106, 8);
       g.fillStyle(0x000000).fillRect(x + 10, y + 92, 375, 8);
       g.fillStyle(u.dead ? 0x555555 : 0x5be37a).fillRect(x + 10, y + 92, (375 * u.hp) / u.maxHp, 8);
-      const key = i === this.controlledIdx ? '操作中' : i === (this.controlledIdx + 2) % 3 ? 'Q' : 'E';
+      const key = i === this.controlledIdx ? '操作中' : i === (this.controlledIdx + this.allies.length - 1) % this.allies.length ? 'Q' : 'E';
       const skills = u.skills
         .map((s, si) => `${SKILL_KEYS[si]} ${s.name}${s.cd > 0 ? ` (${s.cd.toFixed(1)})` : ''}`)
         .join('\n');

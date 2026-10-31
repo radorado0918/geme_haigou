@@ -16,7 +16,7 @@ export function damage(power: number, atk: number, def: number): number {
 
 /** 移動速度（px/秒） */
 export function moveSpeed(spd: number, size: Size): number {
-  return (110 + spd * 0.7) * SIZE_PARAMS[size].speedMul;
+  return (200 + spd * 1.0) * SIZE_PARAMS[size].speedMul;
 }
 
 export interface AttackParams {
