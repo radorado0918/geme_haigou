@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { FAMILY_COLORS } from '../battle/Unit';
 import { inheritableSkills, inheritableTraits, MAX_INHERITED_SKILLS, previewChild } from '../game/breeding';
-import { SKILL_MAP } from '../game/data/skills';
+import { SKILL_KIND_INFO, SKILL_MAP } from '../game/data/skills';
 import { TRAIT_MAP } from '../game/data/traits';
 import { getSpecies, levelCap } from '../game/monster';
 import { breedInState } from '../game/progress';
@@ -144,7 +144,7 @@ export class BreedScene extends Phaser.Scene {
           290 + Math.floor(i / 2) * 50,
           256,
           40,
-          `${on ? '✔ ' : ''}${sk.name}`,
+          `${on ? '✔ ' : ''}${sk.name}（${SKILL_KIND_INFO[sk.kind].label}）`,
           () => {
             this.pickedSkills = on ? this.pickedSkills.filter((x) => x !== id) : [...this.pickedSkills, id];
             this.render();
